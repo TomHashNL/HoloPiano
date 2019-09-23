@@ -9,8 +9,8 @@ public class openBin : MonoBehaviour
 {
     // Start is called before the first frame update
 
-    public readonly static int w = 450;
-    public readonly static int h = 448;
+    public readonly static int w = 448;
+    public readonly static int h = 450;
     public readonly static int d = 2;
     float[] uv = new float[w * h * d];
     string[] linesDepth = new string[0];
@@ -18,7 +18,7 @@ public class openBin : MonoBehaviour
     int index = 1;
     string[] headersD;
     string[] headersR;
-    string folder = @"C:\Users\t.aalbers\source\repos\datasets\21\";
+    string folder = @"C:\Users\t.aalbers\source\repos\datasets\22\";
 
     Texture2D texMask;
     Texture2D texCheck;
@@ -118,25 +118,26 @@ public class openBin : MonoBehaviour
                     new Vector4(float.Parse(cols[26]), float.Parse(cols[27]), float.Parse(cols[28]), float.Parse(cols[29])),
                     new Vector4(float.Parse(cols[30]), float.Parse(cols[31]), float.Parse(cols[32]), float.Parse(cols[33])));
 
-                var TRS = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0, 180, 180), new Vector3(1, 1, 1));//rotate globally 180* in Y and Z
-                var TRS2 = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0, 180, 180), new Vector3(1, 1, 1));//mirror the screen in X locally and rotate 180* locally arround Y and Z
+                var TRS = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0, 180, 180), new Vector3(1, 1, 1) * 0.67f);//rotate globally 180* in Y and Z, and scale
+                var TRS2 = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0, 180, 180), new Vector3(1, 1, 1) * 1.0f);//rotate 180* locally arround Y and Z
 
                 Camera.main.worldToCameraMatrix = TRS2 * cameraView * frameToOrigin * TRS;
 
+                //var inverse = Camera.main.worldToCameraMatrix;//.inverse;
                 var inverse = Camera.main.worldToCameraMatrix.inverse;
 
                 if (raytraceCamera != null)
                 {
                     raytraceCamera.transform.localPosition = inverse.GetColumn(3);
                     raytraceCamera.transform.localRotation = inverse.rotation;
-                    raytraceCamera.transform.localScale = inverse.lossyScale;
+                    //raytraceCamera.transform.localScale = inverse.lossyScale;
                 }
 
                 for (int y = 0; y < h; y++)
                     for (int x = 0; x < w; x++)
                     {
                         //(y, x)
-                        var lal = new Vector3(uv[(x + y * w) * d + 1], uv[(x + y * w) * d], 1).normalized;
+                        var lal = new Vector3(-uv[(y + x * h) * d], -uv[(y + x * h) * d + 1], 1).normalized;
 
                         if (float.IsNaN(lal.x))
                         {
@@ -147,22 +148,22 @@ public class openBin : MonoBehaviour
                         var lal2 = new Vector3(0, 0, -1);//forward real!
 
                         var lal3 = (inverse.rotation * Quaternion.FromToRotation(lal2, lal)) * Vector3.forward;
-                        //fix the orientation?
-                        //lal3.x *= -1;
-                        //lal3.z *= -1;
+                        ////fix the orientation?
+                        ////lal3.x *= -1;
+                        ////lal3.z *= -1;
                         var v4 = inverse.GetColumn(3);
                         //var v4 = Camera.main.transform.localPosition;
-                        //v4.z *= -1;
+                        ////v4.z *= -1;
                         var hit = Physics.Raycast(v4, lal3);
-                        texMask.SetPixel(x, y, hit ? Color.white : Color.black);
+                        var col = hit ? Color.white : Color.black;
+                        //var col = new Color(lal3.x, lal3.y, lal3.z);
+                        texMask.SetPixel(x, y, col);
                     }
 
 
-                //GetComponent<MeshRenderer>().material.mainTexture = tex;
+                //GetComponent<MeshRenderer>().material.mainTexture = texMask;
                 File.WriteAllBytes($"{folder}mask/" + $"00{cols[0]}.png", texMask.EncodeToPNG());
-                //File.WriteAllBytes(@"label.png", tex.EncodeToPNG());
 
-                //File.ReadAllBytes($"{folder}depth/" + $"00{cols[0]}.png");
                 var done = texReflectivity.LoadImage(File.ReadAllBytes($"{folder}rgb/" + $"00{cols[0]}.png"));
 
                 for (int y = 0; y < h; y++)
@@ -174,7 +175,7 @@ public class openBin : MonoBehaviour
 
                 File.WriteAllBytes($"{folder}check/" + $"00{cols[0]}.png", texCheck.EncodeToPNG());
 
-                Debug.Log(@"File written!");
+                Debug.Log($"{cols[0]} processed!");
             }
         }
         else if (index == linesReflectivity.Length)
